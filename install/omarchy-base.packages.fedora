@@ -88,6 +88,9 @@ socat
 inotify-tools
 inxi
 dua-cli
+# QR helpers used by the current Quickshell menus.
+qrencode
+zbar
 whois
 unzip
 util-linux-script
