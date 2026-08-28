@@ -4,7 +4,16 @@
 -- Keep the more deliberate repeat timing used by the Fedora Asahi port. The
 -- upstream 250 ms delay is easy to trigger on an Apple laptop keyboard and can
 -- duplicate characters in the lock-screen password field.
-hl.config({ input = { repeat_rate = 40, repeat_delay = 600 } })
+hl.config({
+  input = {
+    repeat_rate = 40,
+    repeat_delay = 600,
+    sensitivity = 0.25,
+    touchpad = {
+      natural_scroll = true,
+    },
+  },
+})
 
 -- Keyboard layout and options.
 -- See https://wiki.hypr.land/Configuring/Basics/Variables/#input
