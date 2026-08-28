@@ -59,7 +59,7 @@ fi
 
 printf 'Backup created at %s\n' "$backup"
 
-sudo dnf install -y quickshell libxkbcommon-utils qt6-qtimageformats
+sudo dnf install -y quickshell libxkbcommon-utils qt6-qtimageformats udiskie bluez-tools
 
 # Prepare the complete tree first, then swap directories with renames. Removing
 # the live directory in place races Hyprland's config watcher, which recreates
