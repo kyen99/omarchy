@@ -10,9 +10,7 @@ if [[ -z $1 ]]; then
 fi
 
 remove_php() {
-  # Mirrors the package set omarchy-install-dev-env installs on Fedora. omarchy-pkg-drop skips
-  # anything that is not installed, so this stays quiet on a partial install.
-  omarchy-pkg-drop php php-cli composer php-pdo php-pecl-xdebug3
+  omarchy-pkg-drop php composer php-sqlite xdebug
 }
 
 case "$1" in

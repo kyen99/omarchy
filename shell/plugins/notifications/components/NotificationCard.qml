@@ -38,13 +38,13 @@ BorderSurface {
   // The `check` flag avoids Qt's missing-texture placeholder for unknown names.
   readonly property string smallIconSource: image.length > 0 ? image : iconSource(appIcon)
   readonly property bool hasGlyph: glyph.length > 0
-  readonly property bool compactGlyph: NotificationLogic.shouldRenderCompactGlyph(glyph, smallIconSource)
+  readonly property bool compactGlyph: NotificationLogic.shouldRenderCompactGlyph(glyph, smallIconSource, singleLineToast)
   readonly property bool hasSmallIcon: smallIconSource.length > 0
   readonly property bool summaryStartsWithGlyph: NotificationLogic.summaryStartsWithGlyph(summary)
   readonly property bool singleLineToast: sanitizedBody.length === 0
   readonly property bool collapseRedundantIcon: singleLineToast && !hasGlyph && summaryStartsWithGlyph
   readonly property string sanitizedBody: sanitizeBody(body)
-  readonly property string styledBody: sanitizedBody.replace(/\r\n|\r|\n/g, "<br/>")
+  readonly property string styledBody: NotificationLogic.styledBody(body, app, appIcon)
 
   readonly property color dimColor: Qt.darker(Color.notifications.text, 1.4)
   readonly property color bodyColor: Qt.darker(Color.notifications.text, 1.15)
@@ -77,7 +77,14 @@ BorderSurface {
   MouseArea {
     anchors.fill: parent
     cursorShape: Qt.PointingHandCursor
-    onClicked: root.cardClicked()
+    acceptedButtons: Qt.LeftButton | Qt.RightButton
+    onClicked: function(mouse) {
+      if (mouse.button === Qt.RightButton) {
+        root.closeRequested()
+      } else {
+        root.cardClicked()
+      }
+    }
   }
 
   ColumnLayout {
@@ -109,7 +116,7 @@ BorderSurface {
         // Hide the slot when the icon failed to resolve (themed-icon name
         // not in the user's icon theme) AND we don't have a glyph fallback
         // — prevents rendering Qt's pink broken-image placeholder.
-        visible: !root.collapseRedundantIcon && !root.compactGlyph && root.hasSmallIcon && (root.hasGlyph || smallIconImage.status !== Image.Error)
+        visible: !root.collapseRedundantIcon && !root.compactGlyph && (root.hasSmallIcon || root.hasGlyph) && (root.hasGlyph || smallIconImage.status !== Image.Error)
 
         Image {
           id: smallIconImage
@@ -126,16 +133,18 @@ BorderSurface {
         // Glyph fallback (Nerd Font character) when no image icon is
         // available. Used by omarchy-notification-send's `-g` flag.
         Text {
+          textFormat: Text.PlainText
           anchors.centerIn: parent
           visible: root.hasGlyph && smallIconImage.status !== Image.Ready
           text: root.glyph
           color: Color.notifications.text
           font.family: root.fontFamily
-          font.pixelSize: Style.font.iconLarge
+          font.pixelSize: Style.font.displayLarge
         }
       }
 
       Text {
+        textFormat: Text.PlainText
         Layout.alignment: Qt.AlignVCenter
         visible: root.compactGlyph
         text: root.glyph
@@ -147,9 +156,16 @@ BorderSurface {
       ColumnLayout {
         Layout.fillWidth: true
         Layout.alignment: Qt.AlignVCenter
+        // Keep the first line clear of the hover-revealed close button.
+        Layout.rightMargin: Style.space(10)
         spacing: Style.space(2)
 
         Text {
+          // The spec defines the summary as a single line of plain text, so
+          // AutoText could only ever promote a hostile string to rich text.
+          // The body below is StyledText on purpose — see Service.qml's
+          // bodyMarkupSupported — and is stripped in NotificationLogic.
+          textFormat: Text.PlainText
           Layout.fillWidth: true
           visible: root.summary.length > 0
           text: root.summary
@@ -176,6 +192,36 @@ BorderSurface {
           maximumLineCount: 3
         }
       }
+    }
+  }
+
+  // Hover-revealed close. Stacked after mainColumn so its MouseArea sits
+  // above the full-card one and the click never reaches cardClicked.
+  Item {
+    anchors.top: parent.top
+    anchors.right: parent.right
+    anchors.topMargin: root.borderTop + Style.space(3)
+    anchors.rightMargin: root.borderRight + Style.space(3)
+    width: Style.space(18)
+    height: Style.space(18)
+    visible: opacity > 0
+    opacity: root.hovered ? 1 : 0
+
+    Behavior on opacity { NumberAnimation { duration: 100 } }
+
+    Text {
+      anchors.centerIn: parent
+      text: "✕"
+      color: closeArea.containsMouse ? Color.notifications.text : root.dimColor
+      font.pixelSize: Math.round(Style.font.caption * 1.44)
+    }
+
+    MouseArea {
+      id: closeArea
+      anchors.fill: parent
+      hoverEnabled: true
+      cursorShape: Qt.PointingHandCursor
+      onClicked: root.closeRequested()
     }
   }
 

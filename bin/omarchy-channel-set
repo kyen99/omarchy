@@ -1,110 +1,99 @@
 #!/bin/bash
 
-# omarchy:summary=Set the Omarchy channel: track the quattro branch, or link a local dev checkout.
-# omarchy:args=<stable|dev>
+# omarchy:summary=Set the Omarchy package channel.
+# omarchy:args=<stable|rc|edge|dev>
 # omarchy:requires-sudo=true
 
 set -euo pipefail
 
-usage() { echo "Usage: omarchy-channel-set [stable|dev]"; }
-fail() {
-  echo "Error: $*" >&2
-  exit 1
-}
+usage() { echo "Usage: omarchy-channel-set [stable|rc|edge|dev]"; }
+fail() { echo "Error: $*" >&2; exit 1; }
 
 confirm_dev() {
   cat <<'WARNING'
 
-Dev links Omarchy directly to a mutable source checkout.
-
-This disables the normal git-pull update path for the Omarchy code path. You will be responsible for
-pulling, fixing, and restoring that checkout yourself.
+The dev channel links Omarchy directly to a checkout of the source in ~/omarchy.
+It's exclusively intended for developers working on Omarchy itself.
 
 WARNING
 
-  gum confirm --default=false "Enable Dev anyway?"
+  gum confirm --default=false "Switch to dev channel?"
 }
 
-choose_dev_checkout() {
-  local default_path="$HOME/Work/omarchy"
-  local path="${OMARCHY_DEV_PATH:-}"
+validate_dev_checkout() {
+  local checkout="$1"
 
-  if [[ -z $path ]]; then
-    path=$(gum input --value "$default_path" --placeholder "$default_path" \
-      --header "Where should the Dev checkout live?") || exit 1
+  if [[ -e $checkout && ! -d $checkout/.git ]]; then
+    fail "$checkout already exists and is not a git checkout."
   fi
 
-  path="${path:-$default_path}"
-  case "$path" in
-  "~") path="$HOME" ;;
-  "~/"*) path="$HOME/${path#\~/}" ;;
-  /*) ;;
-  *) path="$PWD/$path" ;;
-  esac
-
-  if [[ -e $path && ! -d $path/.git ]]; then
-    fail "$path already exists and is not a git checkout. Choose an empty path or an existing Omarchy checkout."
+  if [[ -d $checkout/.git && ( ! -d $checkout/bin || ! -d $checkout/default || ! -d $checkout/shell ) ]]; then
+    fail "$checkout is a git checkout, but it does not look like Omarchy."
   fi
-  if [[ -d $path/.git && (! -d $path/bin || ! -d $path/default || ! -d $path/shell) ]]; then
-    fail "$path is a git checkout, but it does not look like Omarchy."
-  fi
-
-  printf '%s\n' "$path"
 }
 
-sync_dev_checkout() {
-  local checkout="$1" repo_url branch
-  repo_url="$(git -C "$OMARCHY_PATH" remote get-url origin)"
-  branch="$(git -C "$OMARCHY_PATH" rev-parse --abbrev-ref HEAD)"
+link_dev_checkout() {
+  local checkout="$1"
+  [[ -d $checkout/.git ]] || git clone https://github.com/basecamp/omarchy.git "$checkout"
 
-  if [[ -d $checkout/.git ]]; then
-    echo "Updating Dev checkout at $checkout"
-    git -C "$checkout" fetch origin "$branch"
-    git -C "$checkout" checkout "$branch" 2>/dev/null || git -C "$checkout" checkout --track "origin/$branch"
-    git -C "$checkout" pull --ff-only origin "$branch"
-  else
-    mkdir -p "$(dirname -- "$checkout")"
-    git clone --branch "$branch" "$repo_url" "$checkout"
-  fi
-
-  omarchy-dev-link "$checkout"
+  omarchy-dev-link "$checkout" --no-reboot
 }
 
-(($# > 0)) || {
-  usage
-  exit 1
-}
+(( $# > 0 )) || { usage; exit 1; }
 
+dev_checkout=""
 channel="$1"
-STATE_DIR="$HOME/.local/state/omarchy"
-STATE_FILE="$STATE_DIR/channel"
+leaving_dev=0
 
 case "$channel" in
-stable | rc | edge)
-  # The fork ships a single git-clone line, so every package channel collapses onto the quattro
-  # branch. Leaving Dev is a separate, deliberate `omarchy dev unlink`.
-  omarchy-branch-set "quattro"
-  channel=stable
-  ;;
-dev)
-  confirm_dev || {
-    echo "Cancelled."
-    exit 0
-  }
-  dev_checkout=$(choose_dev_checkout)
-  sync_dev_checkout "$dev_checkout"
-  ;;
-*)
-  echo "Unknown channel: $channel" >&2
-  usage >&2
-  exit 1
-  ;;
+  stable)
+    pacman_channel=stable
+    packages=(omarchy omarchy-settings)
+    ;;
+  rc)
+    pacman_channel=rc
+    packages=(omarchy omarchy-settings)
+    ;;
+  edge)
+    pacman_channel=edge
+    packages=(omarchy-dev omarchy-settings-dev)
+    ;;
+  dev)
+    confirm_dev || { echo "Cancelled."; exit 0; }
+    dev_checkout="$HOME/omarchy"
+    validate_dev_checkout "$dev_checkout"
+    pacman_channel=edge
+    packages=(omarchy-dev omarchy-settings-dev)
+    ;;
+  *)
+    echo "Unknown channel: $channel" >&2
+    usage >&2
+    exit 1
+    ;;
 esac
 
-mkdir -p "$STATE_DIR"
-echo "$channel" >"$STATE_FILE"
-
-# Dev manages its own checkout; only the tracked branch runs the normal update pipeline.
-if [[ $channel == stable ]]; then
-  omarchy-update -y
+if [[ -z $dev_checkout && $OMARCHY_PATH != "/usr/share/omarchy" ]]; then
+  leaving_dev=1
 fi
+
+if [[ -n $dev_checkout ]]; then
+  link_dev_checkout "$dev_checkout"
+  export OMARCHY_PATH="$dev_checkout"
+  export PATH="$OMARCHY_PATH/bin:$PATH"
+  omarchy-state set reboot-required
+fi
+
+omarchy-refresh-pacman "$pacman_channel"
+# --ask 4 accepts omarchy <-> omarchy-dev replacement prompts without file overwrites.
+sudo env OMARCHY_UPDATE_PACMAN=1 pacman -S --needed --noconfirm --ask 4 "${packages[@]}"
+
+if [[ -z $dev_checkout ]]; then
+  omarchy-dev-unlink --no-reboot
+  export OMARCHY_PATH=/usr/share/omarchy
+
+  if (( leaving_dev )); then
+    omarchy-state set reboot-required
+  fi
+fi
+
+omarchy-update -y

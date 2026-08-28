@@ -105,6 +105,8 @@ Item {
   property string choiceDemoValue: "top"
   property bool toggleDemoOn: true
   property bool toggleSquareOn: false
+  property bool switchDemoOn: true
+  property bool switchBusyOn: false
   property string dropdownDemoValue: "Clock"
   property string searchableDemoValue: ""
   property int numberDemoValue: 15
@@ -112,7 +114,7 @@ Item {
   readonly property var visibleSections: [
     "cursor-surface", "button", "button-group", "panel-action-button",
     "panel-tool-tip", "slider", "text-field", "number-field",
-    "toggle", "dropdown", "searchable-dropdown", "composed"
+    "toggle", "toggle-switch", "dropdown", "searchable-dropdown", "composed"
   ]
 
   function sectionCount(section) {
@@ -126,6 +128,7 @@ Item {
       case "text-field":          return 2
       case "number-field":        return 1
       case "toggle":              return 2
+      case "toggle-switch":       return 2
       case "dropdown":            return 1
       case "searchable-dropdown": return 1
       case "composed":            return 2
@@ -139,6 +142,7 @@ Item {
     return section === "button"
       || section === "button-group"
       || section === "panel-action-button"
+      || section === "toggle-switch"
   }
 
   // True for sections where h/l should adjust a value rather than walk.
@@ -212,6 +216,11 @@ Item {
     if (focusSection === "toggle") {
       if (selectedIndex === 0) root.toggleDemoOn = !root.toggleDemoOn
       else root.toggleSquareOn = !root.toggleSquareOn
+      return
+    }
+    if (focusSection === "toggle-switch") {
+      // The busy switch swallows activation the same way it swallows clicks.
+      if (selectedIndex === 0) root.switchDemoOn = !root.switchDemoOn
       return
     }
     if (focusSection === "dropdown") {
@@ -510,12 +519,14 @@ Item {
                       width: Style.space(140)
                       spacing: Style.space(1)
                       Text {
+                        textFormat: Text.PlainText
                         text: "Style.font." + modelData.key
                         color: root.foreground
                         font.family: root.fontFamily
                         font.pixelSize: Style.font.bodySmall
                       }
                       Text {
+                        textFormat: Text.PlainText
                         text: modelData.size + " px"
                         color: Qt.darker(root.foreground, 1.5)
                         font.family: root.fontFamily
@@ -525,6 +536,7 @@ Item {
 
                     Text {
                       id: sampleText
+                      textFormat: Text.PlainText
                       anchors.left: metaCol.right
                       anchors.right: parent.right
                       anchors.verticalCenter: parent.verticalCenter
@@ -565,6 +577,7 @@ Item {
                     font.pixelSize: Style.font.bodySmall
                   }
                   Text {
+                    textFormat: Text.PlainText
                     text: Style.font.family
                     color: root.foreground
                     font.family: root.fontFamily
@@ -578,6 +591,7 @@ Item {
                     font.pixelSize: Style.font.bodySmall
                   }
                   Text {
+                    textFormat: Text.PlainText
                     text: Style.font.resolvedFamily
                     color: root.foreground
                     font.family: root.fontFamily
@@ -591,6 +605,7 @@ Item {
                     font.pixelSize: Style.font.bodySmall
                   }
                   Text {
+                    textFormat: Text.PlainText
                     text: Style.font.baseSize + " px"
                     color: root.foreground
                     font.family: root.fontFamily
@@ -604,6 +619,7 @@ Item {
                     font.pixelSize: Style.font.bodySmall
                   }
                   Text {
+                    textFormat: Text.PlainText
                     text: Style.bar.sizeHorizontal + " px"
                     color: root.foreground
                     font.family: root.fontFamily
@@ -617,6 +633,7 @@ Item {
                     font.pixelSize: Style.font.bodySmall
                   }
                   Text {
+                    textFormat: Text.PlainText
                     text: Style.bar.sizeVertical + " px"
                     color: root.foreground
                     font.family: root.fontFamily
@@ -630,6 +647,7 @@ Item {
                     font.pixelSize: Style.font.bodySmall
                   }
                   Text {
+                    textFormat: Text.PlainText
                     text: Style.spacing.scale.toFixed(2)
                     color: root.foreground
                     font.family: root.fontFamily
@@ -643,6 +661,7 @@ Item {
                     font.pixelSize: Style.font.bodySmall
                   }
                   Text {
+                    textFormat: Text.PlainText
                     text: Style.spacing.panelPadding + " px"
                     color: root.foreground
                     font.family: root.fontFamily
@@ -809,6 +828,7 @@ Item {
 
                     Text {
                       id: csLabel
+                      textFormat: Text.PlainText
                       anchors.left: parent.left
                       anchors.right: parent.right
                       anchors.verticalCenter: parent.verticalCenter
@@ -1264,6 +1284,7 @@ Item {
                 }
 
                 Text {
+                  textFormat: Text.PlainText
                   text: Math.round((demoSlider.dragging ? demoSlider.liveValue : sliderRow.demoVolume) * 100) + "%"
                   color: root.foreground
                   font.family: root.fontFamily
@@ -1467,6 +1488,69 @@ Item {
                 root.focusSection = "toggle"; root.selectedIndex = 1
                 root.toggleSquareOn = !root.toggleSquareOn
               }
+            }
+          }
+
+          // ---- ToggleSwitch --------------------------------------------------
+          Column {
+            width: parent.width
+            spacing: Style.space(8)
+
+            Text {
+              text: "ToggleSwitch"
+              color: root.foreground
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.subtitle
+              font.bold: true
+            }
+            Text {
+              text: "The bare switch Toggle puts at the end of its row, for places with no room for a labeled row — a panel hero's trailingControl, for instance. Caller owns `checked` and flips it on `toggled()`. Set `busy` while an operation is in flight to swallow further clicks without disturbing hover or tooltips; services that track a desired state optimistically get an instant knob throw because `checked` is already the optimistic value."
+              color: Qt.darker(root.foreground, 1.5)
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.caption
+              width: parent.width
+              wrapMode: Text.WordWrap
+            }
+
+            Row {
+              spacing: Style.space(24)
+
+              ToggleSwitch {
+                checked: root.switchDemoOn
+                foreground: root.foreground
+                accent: root.accent
+                hasCursor: root.focusSection === "toggle-switch" && root.selectedIndex === 0
+                onHovered: function(h) {
+                  if (h) { root.focusSection = "toggle-switch"; root.selectedIndex = 0 }
+                }
+                onHasCursorChanged: if (hasCursor) root.ensureCursorVisible(this)
+                onToggled: {
+                  root.focusSection = "toggle-switch"; root.selectedIndex = 0
+                  root.switchDemoOn = !root.switchDemoOn
+                }
+              }
+
+              ToggleSwitch {
+                checked: root.switchBusyOn
+                busy: true
+                foreground: root.foreground
+                accent: root.accent
+                hasCursor: root.focusSection === "toggle-switch" && root.selectedIndex === 1
+                onHovered: function(h) {
+                  if (h) { root.focusSection = "toggle-switch"; root.selectedIndex = 1 }
+                }
+                onHasCursorChanged: if (hasCursor) root.ensureCursorVisible(this)
+                onToggled: root.switchBusyOn = !root.switchBusyOn
+              }
+            }
+
+            Text {
+              text: "The second switch is `busy: true` — hover still responds, clicks do not."
+              color: Qt.darker(root.foreground, 1.5)
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.caption
+              width: parent.width
+              wrapMode: Text.WordWrap
             }
           }
 

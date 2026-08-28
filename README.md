@@ -1,200 +1,79 @@
-# Omarchy Mac Fedora — Quattro
-
-A concise, beginner-friendly guide to install Omarchy Mac Fedora on **Fedora Asahi Remix (aarch64)** for Apple Silicon Macs M1/M2
-
-> ### 🆕 This is Omarchy "Quattro"
-> This branch tracks **Omarchy quattro** — a major rework of the desktop. The bar, launcher,
-> notifications, and OSD (waybar / walker / mako / swayosd) are replaced by a single **Quickshell**
-> shell, and all Hyprland config — including every keybinding — moves to **Lua** (`.conf` → `.lua`).
-> **→ See [QUATTRO-CHANGES.md](QUATTRO-CHANGES.md) for the full list of what changed.**
-> For the previous 3.8.x line, use the `sync/upstream-v3.8.2` branch.
-
-_This project is an extension of [Omarchy Mac](https://github.com/malik-na/omarchy-mac) project._
-
-**Important:** Fedora Asahi Minimal first boot lands in a TTY setup flow. You must complete all prompts there before running Omarchy Mac Fedora installer steps.
-
-[![License](https://img.shields.io/github/license/malik-na/omarchy-mac-fedora)](LICENSE) [![Stars](https://img.shields.io/github/stars/malik-na/omarchy-mac-fedora?style=social)](https://github.com/malik-na/omarchy-mac-fedora/stargazers)
-
----
-
-## Quick links
-
-- Fedora Asahi device support: https://asahilinux.org/fedora/#device-support
-- Omarchy Mac Fedora Discord: https://discord.gg/jdqjcPxxJe
-- External monitor discussion: https://github.com/malik-na/omarchy-mac-fedora/discussions/73
-- Support the project: https://buymeacoffee.com/malik2015no
-
----
-
-## Before you begin
-
-Requirements:
-
-- Apple Silicon Mac (M1/M2 family)
-- **Fedora Asahi Remix 44 Minimal (aarch64) or newer**
-- A regular user with sudo access
-- Internet connectivity
-- `git` installed
-
-Unsupported targets:
-
-- Arch/Asahi Alarm runtime paths
-- Non-Asahi Fedora installs
-- x86_64
-- **Fedora Asahi Remix 43 and older** - see below
-
-### Already on Fedora Asahi Remix 43?
-
-Omarchy 3.8.2 requires Fedora 44. Several packages it needs no longer exist on 43, and the Hyprland
-0.55 build it targets is only published for the 44 chroot. Upgrade Fedora first:
-
-```bash
-sudo dnf upgrade --refresh
-sudo dnf install dnf-plugin-system-upgrade
-sudo dnf system-upgrade download --releasever=44
-sudo dnf system-upgrade reboot
-```
-
-The machine reboots into the upgrade, so close your work first. When it comes back up, run
-`omarchy-update`.
-
-Omarchy never runs the system upgrade for you: it reboots the machine and can leave an Asahi install
-unbootable, so it is your call, not the installer's. Until you upgrade, the installer, `omarchy-update`
-and `omarchy-migrate` all stop with these instructions and change nothing - an existing Fedora 43
-install keeps working on the Omarchy version it already has.
-
-Checklist:
-
-- [ ] Backup completed
-- [ ] Fedora Asahi device compatibility checked
-- [ ] Running Fedora Asahi Remix 44 or newer (`cat /etc/os-release`)
-- [ ] Fedora Asahi first-boot TTY setup completed (language, hostname, time, root password, user, wheel)
-- [ ] Internet connected
-- [ ] Sudo user ready
-
----
-
-## Connect to Wi-Fi before installation
-
-Use one of these methods from your Fedora Asahi session before running the installer.
-
-Use `nmcli` (NetworkManager CLI):
-
-```bash
-# Check network devices
-nmcli device status
-
-# Connect to a network
-nmcli device wifi connect "SSID_NAME" password "PASSWORD"
-```
-
-The connection you make here carries over into the installed system: the installer leaves
-NetworkManager on its default `wpa_supplicant` backend and does not touch saved profiles.
-
-Fedora Asahi Minimal normally includes the required first-boot setup prompts; use these commands only to ensure networking is ready before install.
-
----
-
-### Prepare Fedora Asahi Minimal (required)
-
-Fedora Asahi Minimal always starts with a TTY setup flow. Complete all prompts there before continuing:
-
-- language
-- hostname
-- date/time
-- root password
-- regular user creation
-- wheel/sudo access
-
-Do not continue to Omarchy install until all first-boot setup actions are complete.
-
-Optional: improve TTY readability
-
-```bash
-sudo dnf install -y terminus-fonts-console || sudo dnf install -y terminus-fonts
-sudo setfont ter-v22n
-```
-
-### Install Omarchy Mac Fedora
-
-As your regular sudo user;
-
-
-Clone and run the installer:
-
-```bash
-sudo dnf update
-git clone https://github.com/malik-na/omarchy-mac-fedora.git ~/.local/share/omarchy
-cd ~/.local/share/omarchy
-bash install.sh
-```
-
-`omarchy update` pulls from wherever you cloned, so a fork installs and updates from that fork
-without any extra configuration.
-
----
-
-## Post-install tasks
-
-- Reboot and log into your Hyprland session.
-- Press `Cmd + K`  to learn all the Keybindings. 
-- Validate core desktop behavior: app launcher opens, terminal keybind works, Wi-Fi/Bluetooth menus open, and lock screen works.
-
-## Troubleshooting and FAQ
-
-### Installer refuses to continue
-
-The installer currently supports **Fedora Asahi Remix on aarch64 only**. Verify distro/architecture and rerun.
-
-On **Fedora Asahi Remix 43 or older** the installer, `omarchy-update` and `omarchy-migrate` all stop on purpose and print the upgrade steps. Upgrade Fedora to 44 first - see [Already on Fedora Asahi Remix 43?](#already-on-fedora-asahi-remix-43) above.
-
-### Session launches but keybinds fail
-
-Run this to confirm Omarchy commands resolve in your login shell:
-
-```bash
-bash -lc 'echo "$PATH"'
-bash -lc 'command -v omarchy-menu omarchy-cmd-terminal-cwd uwsm-app'
-```
-
----
-
-## Update and maintenance
-
-- `Menu > Update > Omarchy` pulls the Omarchy repository, runs any pending migrations, and updates Fedora packages (`dnf upgrade --refresh`).
-- It also covers what `dnf` cannot reach: the `--user` Flatpak apps (Obsidian, Moonlight), the npx-wrapped CLI tools, and the mise runtimes. `DEPENDENCIES.md` lists every external source and the mechanism that updates it.
-- Update availability is tracked as git divergence from your configured upstream branch.
-
-Check branch/upstream state:
-
-```bash
-git -C ~/.local/share/omarchy status -sb
-```
-
----
-
-## Support
-
-Need help or want to share your setup?
-
-- Discord: https://discord.gg/jdqjcPxxJe
-- Support the project: [![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-FFDD00?style=for-the-badge&logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/malik2015no)
-
----
-
-## External resources
-
-- Fedora Asahi device support: https://asahilinux.org/fedora/#device-support
-- Asahi Linux project: https://asahilinux.org/
-- External monitor discussion: https://github.com/malik-na/omarchy-mac-fedora/discussions/73
-
----
-
-## Acknowledgements
-
-Thanks to the Asahi Linux community for making Linux  by possible on Macs and thanks to DHH for Omarchy.
-
-If this project helped you, please star the repository and share feedback on X by tagging [@tiredkebab](https://x.com/tiredkebab).
-
----
-
+# Omarchy
+
+Omarchy is a beautiful, modern & opinionated Linux distribution by DHH.
+
+Read more at [omarchy.org](https://omarchy.org).
+
+## The Omarchy Manual
+
+The manual lives in [`manual/`](manual/), which is its authoritative source. It's
+mirrored to [learn.omacom.io](https://learn.omacom.io/2/the-omarchy-manual), where
+its screenshots are also hosted.
+
+- [Welcome to Omarchy!](manual/01-welcome-to-omarchy.md)
+
+**The Basics**
+
+- [Getting Started](manual/02-getting-started.md)
+- [Coming From Mac or Windows](manual/03-coming-from-mac-or-windows.md)
+- [Navigation](manual/04-navigation.md)
+- [The top bar](manual/05-the-top-bar.md)
+- [Themes](manual/06-themes.md)
+- [Hotkeys](manual/07-hotkeys.md)
+- [Unified Clipboard & History](manual/08-unified-clipboard-history.md)
+- [Reminders](manual/09-reminders.md)
+- [Notices](manual/10-notices.md)
+- [Text Extraction & Dictation](manual/11-text-extraction-dictation.md)
+- [Screenshots & Recording](manual/12-screenshots-recording.md)
+- [Toggles, idle & screensaver](manual/13-toggles-idle-screensaver.md)
+- [Omarchy CLI](manual/14-omarchy-cli.md)
+
+**The Applications**
+
+- [Terminal](manual/15-terminal.md)
+- [Neovim](manual/16-neovim.md)
+- [AI](manual/17-ai.md)
+- [Development Tools](manual/18-development-tools.md)
+- [Shell Tools](manual/19-shell-tools.md)
+- [Shell Functions](manual/20-shell-functions.md)
+- [TUIs](manual/21-tuis.md)
+- [GUIs](manual/22-guis.md)
+- [Browsers](manual/23-browsers.md)
+- [Commercial apps/services](manual/24-commercial-apps-services.md)
+- [Web Apps](manual/25-web-apps.md)
+- [Gaming](manual/26-gaming.md)
+- [Filling out PDFs](manual/27-filling-out-pdfs.md)
+- [Windows VM](manual/28-windows-vm.md)
+- [Other Packages](manual/29-other-packages.md)
+
+**Configuration**
+
+- [Updates](manual/30-updates.md)
+- [Dotfiles](manual/31-dotfiles.md)
+- [Shell plugins](manual/32-shell-plugins.md)
+- [Monitors](manual/33-monitors.md)
+- [Keyboard, Mouse, Trackpad](manual/34-keyboard-mouse-trackpad.md)
+- [Networking](manual/35-networking.md)
+- [System sleep](manual/36-system-sleep.md)
+- [Hardware authentication](manual/37-hardware-authentication.md)
+- [Fonts](manual/38-fonts.md)
+- [Backgrounds](manual/39-backgrounds.md)
+- [Prompt](manual/40-prompt.md)
+- [Branding](manual/41-branding.md)
+- [Common tweaks](manual/42-common-tweaks.md)
+- [Making your own theme](manual/43-making-your-own-theme.md)
+
+**The Rest**
+
+- [Mac support](manual/44-mac-support.md)
+- [Troubleshooting](manual/45-troubleshooting.md)
+- [FAQ](manual/46-faq.md)
+- [System snapshots](manual/47-system-snapshots.md)
+- [Security](manual/48-security.md)
+- [Omarchy on...](manual/49-omarchy-on.md)
+- [Dual Boot Install](manual/50-dual-boot-install.md)
+- [Unattended Installs](manual/51-unattended-installs.md)
+
+## License
+
+Omarchy is released under the [MIT License](https://opensource.org/licenses/MIT).

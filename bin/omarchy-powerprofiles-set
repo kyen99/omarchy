@@ -3,15 +3,6 @@
 # omarchy:summary=Set and remember the power profile for AC or battery use
 # omarchy:args=[autodetect|ac|battery] [power-saver|balanced|performance]
 
-# Apple Silicon exposes no platform_profile interface, so power-profiles-daemon
-# has nothing to drive and powerprofilesctl may be absent or report no profiles
-# at all. Bail out with a clear message instead of erroring out of every caller
-# (the shell's battery service calls this on every AC/battery transition).
-if ! command -v powerprofilesctl >/dev/null 2>&1; then
-  echo "powerprofilesctl is not installed - power profiles are unavailable" >&2
-  exit 0
-fi
-
 action="${1:-autodetect}"
 requested_profile="${2:-}"
 
@@ -36,14 +27,7 @@ case "$action" in
   *) usage ;;
 esac
 
-mapfile -t profiles < <(powerprofilesctl list 2>/dev/null | awk '/^\s*[* ]\s*[a-zA-Z0-9\-]+:$/ { gsub(/^[*[:space:]]+|:$/,""); print }')
-
-# No profiles at all is the normal state on hardware without a platform_profile
-# backend, Apple Silicon included. There is nothing to set, so do not try.
-if ((${#profiles[@]} == 0)); then
-  echo "No power profiles are available on this hardware" >&2
-  exit 0
-fi
+mapfile -t profiles < <(omarchy-powerprofiles-list)
 
 profile_available() {
   [[ " ${profiles[*]} " == *" $1 "* ]]
