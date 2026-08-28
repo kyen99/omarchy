@@ -24,22 +24,18 @@ echo "Configuring lock screen password authentication..."
 
 as_root tee /etc/pam.d/omarchy-lock-password >/dev/null <<'EOF'
 #%PAM-1.0
-auth       required                    pam_faillock.so preauth silent deny=10 unlock_time=120
--auth      [success=2 default=ignore]  pam_systemd_home.so
-auth       [success=1 default=bad]     pam_unix.so try_first_pass nullok
-auth       [default=die]               pam_faillock.so authfail deny=10 unlock_time=120
-auth       optional                    pam_permit.so
-auth       required                    pam_env.so
-auth       required                    pam_faillock.so authsucc
-account    include                     system-local-login
+# Fedora's authselect-managed password stack. Do not copy Arch's
+# system-local-login service: it does not exist on Fedora.
+auth       include                     system-auth
+account    include                     system-auth
 EOF
 
 if omarchy-cmd-present fprintd-list && fprintd-list "$target_user" 2>/dev/null | grep -qi finger; then
   echo "Configuring lock screen fingerprint authentication..."
   as_root tee /etc/pam.d/omarchy-lock-fingerprint >/dev/null <<'EOF'
 #%PAM-1.0
-auth       required                    pam_fprintd.so
-account    include                     system-local-login
+auth       include                     fingerprint-auth
+account    include                     system-auth
 EOF
 else
   as_root rm -f /etc/pam.d/omarchy-lock-fingerprint

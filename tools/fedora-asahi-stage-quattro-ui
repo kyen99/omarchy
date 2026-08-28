@@ -1,0 +1,117 @@
+#!/bin/bash
+
+# Stage the Quattro desktop on an existing Omarchy Mac Fedora installation.
+# This deliberately does not run the full installer or replace the existing
+# ~/.local/share/omarchy checkout.
+
+set -euo pipefail
+
+ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+[[ -f $ROOT/shell/shell.qml ]] || { echo "Run this from the Quattro port checkout." >&2; exit 1; }
+[[ $(uname -m) == aarch64 ]] || { echo "This staging helper is for Fedora Asahi aarch64." >&2; exit 1; }
+grep -qi asahi /etc/os-release || grep -qi asahi /proc/version || {
+  echo "Fedora Asahi was not detected." >&2
+  exit 1
+}
+
+stamp=$(date +%Y%m%d-%H%M%S)
+backup="$HOME/.local/state/omarchy-quattro-backups/$stamp"
+mkdir -p "$backup"
+printf '%s\n' "$ROOT" >"$backup/quattro-path"
+
+backup_path() {
+  local path=$1 rel=${1#$HOME/}
+  if [[ -e $path || -L $path ]]; then
+    mkdir -p "$backup/$(dirname "$rel")"
+    cp -a "$path" "$backup/$rel"
+    printf '%s\n' "$rel" >>"$backup/present"
+  else
+    printf '%s\n' "$rel" >>"$backup/absent"
+  fi
+}
+
+for path in \
+  "$HOME/.config/hypr" \
+  "$HOME/.config/uwsm/env" \
+  "$HOME/.config/omarchy/shell.json" \
+  "$HOME/.profile"; do
+  backup_path "$path"
+done
+
+for path in /etc/pam.d/omarchy-lock-password /etc/pam.d/omarchy-lock-fingerprint; do
+  rel="root${path}"
+  if sudo test -e "$path"; then
+    mkdir -p "$backup/$(dirname "$rel")"
+    sudo cp -a "$path" "$backup/$rel"
+    sudo chown "$USER:$(id -gn)" "$backup/$rel"
+    printf '%s\n' "$path" >>"$backup/root-present"
+  else
+    printf '%s\n' "$path" >>"$backup/root-absent"
+  fi
+done
+
+# Preserve the local changes in the classic checkout independently of the
+# configuration backup.
+if [[ -d $HOME/.local/share/omarchy/.git ]]; then
+  git -C "$HOME/.local/share/omarchy" diff >"$backup/classic-checkout.patch" || true
+  git -C "$HOME/.local/share/omarchy" status --short >"$backup/classic-checkout.status" || true
+fi
+
+printf 'Backup created at %s\n' "$backup"
+
+sudo dnf install -y quickshell libxkbcommon-utils qt6-qtimageformats
+
+rm -rf "$HOME/.config/hypr"
+mkdir -p "$HOME/.config"
+cp -a "$ROOT/config/hypr" "$HOME/.config/hypr"
+
+mkdir -p "$HOME/.config/omarchy" "$HOME/.config/uwsm"
+cp -a "$ROOT/config/omarchy/shell.json" "$HOME/.config/omarchy/shell.json"
+
+cat >"$HOME/.config/uwsm/env" <<EOF
+export OMARCHY_PATH="$ROOT"
+export PATH="\$OMARCHY_PATH/bin:\$PATH:\$HOME/.local/bin"
+EOF
+
+# Keep terminal and SSH login shells on the same checkout as the graphical session.
+python3 - "$HOME/.profile" "$ROOT" <<'PY'
+import pathlib, re, sys
+p = pathlib.Path(sys.argv[1])
+root = sys.argv[2]
+s = p.read_text() if p.exists() else ""
+line = f'export OMARCHY_PATH="{root}"'
+if re.search(r'^export OMARCHY_PATH=.*$', s, flags=re.M):
+    s = re.sub(r'^export OMARCHY_PATH=.*$', line, s, flags=re.M)
+else:
+    s += ("\n" if s and not s.endswith("\n") else "") + line + "\n"
+if not re.search(r'^export PATH="?\$OMARCHY_PATH/bin:', s, flags=re.M):
+    s += 'export PATH="$OMARCHY_PATH/bin:$PATH"\n'
+p.write_text(s)
+PY
+
+export OMARCHY_PATH="$ROOT"
+export PATH="$ROOT/bin:$PATH"
+export OMARCHY_THEME_HEADLESS=1
+export OMARCHY_SETUP_CONTEXT=install
+
+OMARCHY_INSTALL_USER="$USER" omarchy-apply-lock
+
+if [[ ! -s $HOME/.local/state/omarchy/current/theme.name ]]; then
+  omarchy-theme-set "Tokyo Night"
+fi
+
+# This is a UI-only transition on an already provisioned Fedora account. Do not
+# let Quattro's first-login path invoke the Arch image provisioning workflow.
+omarchy-done mark first-run-user
+
+printf '%s\n' "$backup" >"$HOME/.local/state/omarchy-quattro-backups/latest"
+cat <<EOF
+
+Quattro UI has been staged. No reboot was performed.
+
+Before logging out, note the rollback command:
+  $ROOT/tools/fedora-asahi-rollback-quattro-ui '$backup'
+
+Log out and back into the normal Hyprland session to try Quattro.
+If login fails, switch to a TTY (Ctrl+Alt+F3), log in, and run that command.
+EOF

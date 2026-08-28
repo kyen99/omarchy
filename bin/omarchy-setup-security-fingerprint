@@ -47,7 +47,7 @@ setup_lock_fingerprint_pam() {
   sudo tee /etc/pam.d/omarchy-lock-fingerprint >/dev/null <<'EOF'
 #%PAM-1.0
 auth       required                    pam_fprintd.so
-account    include                     system-local-login
+account    include                     system-auth
 EOF
 }
 

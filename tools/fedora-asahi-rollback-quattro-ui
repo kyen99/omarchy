@@ -1,0 +1,56 @@
+#!/bin/bash
+
+# Restore the configuration captured by fedora-asahi-stage-quattro-ui.
+
+set -euo pipefail
+
+backup=${1:-}
+if [[ -z $backup ]]; then
+  latest="$HOME/.local/state/omarchy-quattro-backups/latest"
+  [[ -f $latest ]] && backup=$(cat "$latest")
+fi
+[[ -n $backup && -d $backup ]] || {
+  echo "Usage: $0 /path/to/backup" >&2
+  exit 1
+}
+
+restore_user_path() {
+  local rel=$1 target="$HOME/$1"
+  rm -rf "$target"
+  mkdir -p "$(dirname "$target")"
+  cp -a "$backup/$rel" "$target"
+}
+
+if [[ -f $backup/present ]]; then
+  while IFS= read -r rel; do
+    [[ -n $rel ]] && restore_user_path "$rel"
+  done <"$backup/present"
+fi
+
+if [[ -f $backup/absent ]]; then
+  while IFS= read -r rel; do
+    [[ -n $rel ]] && rm -rf "$HOME/$rel"
+  done <"$backup/absent"
+fi
+
+if [[ -f $backup/root-present ]]; then
+  while IFS= read -r path; do
+    [[ -n $path ]] || continue
+    sudo cp -a "$backup/root$path" "$path"
+    sudo chown root:root "$path"
+  done <"$backup/root-present"
+fi
+
+if [[ -f $backup/root-absent ]]; then
+  while IFS= read -r path; do
+    [[ -n $path ]] && sudo rm -f "$path"
+  done <"$backup/root-absent"
+fi
+
+cat <<EOF
+Classic Omarchy configuration restored from:
+  $backup
+
+Log out and back in (or reboot) to return to the classic desktop.
+The Quattro checkout and installed Quickshell package were intentionally left in place.
+EOF
