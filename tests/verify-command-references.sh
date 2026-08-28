@@ -24,6 +24,8 @@ cd "$REPO_ROOT"
 
 # Commands that are not bin/ scripts and are known-good references, with the reason each is not a bug.
 KNOWN_EXTERNAL=(
+  omarchy-exec-argv     # notification hint key, not a command
+  omarchy-glyph         # notification hint key, not a command
   omarchy-webapp-handler # matched inside a grep pattern in omarchy-webapp-remove, not invoked
   omarchy-nvim-refresh   # omarchy-reinstall-configs guards it with omarchy-cmd-present; shipped only
   omarchy-nvim-setup     # by the optional upstream nvim package, which Fedora replaces with lazyvim

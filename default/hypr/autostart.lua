@@ -4,6 +4,9 @@ hl.on("hyprland.start", function()
   hl.exec_cmd("dbus-update-activation-environment --systemd --all")
 
   hl.exec_cmd("omarchy-launch-shell")
+  -- Fedora Asahi has no full-disk unlock managed by Omarchy, so lock at login.
+  hl.exec_cmd("omarchy-system-lock-boot")
+  hl.exec_cmd(o.launch("fcitx5 --disable notificationitem"))
   hl.exec_cmd("omarchy-provision-first-run")
   hl.exec_cmd("omarchy-powerprofiles-init")
   hl.exec_cmd(o.launch("omarchy-hyprland-monitor-watch"))

@@ -1,102 +1,96 @@
 #!/bin/bash
 
-# omarchy:summary=Run pending Omarchy migrations.
+# omarchy:summary=Run all pending migrations to bring the system in line with the installed version.
 # omarchy:args=[--pending]
-
-set -euo pipefail
+OMARCHY_PATH="${OMARCHY_PATH:-$HOME/.local/share/omarchy}"
+OMARCHY_INSTALL="${OMARCHY_INSTALL:-$OMARCHY_PATH/install}"
 
 mode="run"
 
-usage() {
-  echo "Usage: omarchy-migrate [--pending]"
-}
-
 while (($#)); do
   case "$1" in
-    --pending|--check)
+    --pending | --check)
       mode="pending"
       shift
       ;;
-    -h|--help)
-      usage
+    -h | --help)
+      echo "Usage: omarchy-migrate [--pending]"
       exit 0
       ;;
     *)
       echo "Unknown option: $1" >&2
+      echo "Usage: omarchy-migrate [--pending]" >&2
       exit 1
       ;;
   esac
 done
 
-OMARCHY_PATH="${OMARCHY_PATH:-/usr/share/omarchy}"
-STATE_DIR="${OMARCHY_MIGRATION_STATE:-$HOME/.local/state/omarchy/migrations}"
-MIGRATIONS_DIR="$OMARCHY_PATH/migrations"
-
-migration_entries() {
-  [[ -d $MIGRATIONS_DIR ]] || return 0
-
-  local file filename
-
-  for file in "$MIGRATIONS_DIR"/*.sh; do
-    [[ -f $file ]] || continue
-    filename=$(basename "$file")
-    printf '%s\t%s\t%s\n' "$filename" "$file" "$STATE_DIR/$filename"
-  done
-}
-
-pending_migrations() {
-  local name file marker
-
-  while IFS=$'\t' read -r name file marker; do
-    [[ -n $name ]] || continue
-    if [[ ! -f $marker ]]; then
-      printf '%s\n' "$name"
-    fi
-  done < <(migration_entries)
-}
-
-if [[ $mode == "pending" ]]; then
-  pending_output=$(pending_migrations)
-  if [[ -n $pending_output ]]; then
-    printf '%s\n' "$pending_output"
-    exit 0
-  else
-    exit 1
-  fi
+if [[ -f "$OMARCHY_INSTALL/helpers/distro.sh" ]]; then
+  source "$OMARCHY_INSTALL/helpers/distro.sh"
 fi
 
-wait_for_pacman_transaction() {
-  local lock_file=/var/lib/pacman/db.lck
+# Fedora 44 gate. This has to sit ahead of the migration loop, not in a migration file: migrations
+# run in timestamp order, so any migration we add now would run last - after every upstream migration
+# had already touched the system. Stopping here is what keeps a Fedora 43 box on a working 3.5.0
+# instead of a half-applied 3.8.2.
+if declare -F is_fedora_supported_version >/dev/null && is_fedora && ! is_fedora_supported_version; then
+  fedora_upgrade_instructions
+  exit 1
+fi
 
-  [[ -e $lock_file ]] || return 0
-  echo "Waiting for pacman transaction to finish before running Omarchy migrations..."
-
-  for _ in {1..900}; do
-    [[ -e $lock_file ]] || return 0
-    sleep 1
-  done
-
-  echo "Pacman transaction is still running; Omarchy migrations will retry on next login."
-  exit 0
+is_arch_only_migration() {
+  local file="$1"
+  grep -Eq "\\bpacman\\b|\\byay\\b|\\bparu\\b|/etc/pacman|mkinitcpio|limine|pacman-key|omarchy-refresh-pacman|linux-asahi|omarchy-hw-intel|\\bvulkan-(intel|radeon|asahi)\\b|install/config/hardware/(fix-fkeys|intel|nvidia|fix-surface-keyboard|fix-bcm43xx|fix-apple-t2|fix-apple-spi-keyboard|fix-apple-bcm43xx|fix-apple-bcm4360|fix-apple-suspend-nvme)\\.sh" "$file"
 }
 
-wait_for_pacman_transaction
-
+STATE_DIR="$HOME/.local/state/omarchy/migrations"
 mkdir -p "$STATE_DIR"
-[[ -d $MIGRATIONS_DIR ]] || exit 0
 
-while IFS=$'\t' read -r name file marker; do
-  [[ -n $name ]] || continue
+# Skipped migrations are tracked separately
+mkdir -p "$STATE_DIR/skipped"
 
-  if [[ ! -f $marker ]]; then
-    echo -e "\e[32m\nRunning migration (${name%.sh})\e[0m"
-    OMARCHY_PATH="$OMARCHY_PATH" bash -euo pipefail "$file"
-    mkdir -p "$(dirname "$marker")"
-    touch "$marker"
+# --pending is a read-only query, used by omarchy-migrate-notify to decide whether to prompt. It
+# prints the pending names and exits 0, or prints nothing and exits non-zero when there are none.
+#
+# A migration recorded under skipped/ is not pending: those are the Arch-only ones this fork will
+# never run, and counting them would leave every Fedora machine permanently nagging about
+# migrations that can never be applied.
+if [[ $mode == "pending" ]]; then
+  pending=()
+  for file in "$OMARCHY_PATH"/migrations/*.sh; do
+    [[ -f $file ]] || continue
+    filename=$(basename "$file")
+    if [[ ! -f "$STATE_DIR/$filename" && ! -f "$STATE_DIR/skipped/$filename" ]]; then
+      pending+=("$filename")
+    fi
+  done
+
+  ((${#pending[@]})) || exit 1
+  printf '%s\n' "${pending[@]}"
+  exit 0
+fi
+
+# Run any pending migrations
+for file in $OMARCHY_PATH/migrations/*.sh; do
+  filename=$(basename "$file")
+
+  if [[ ! -f "$STATE_DIR/$filename" && ! -f "$STATE_DIR/skipped/$filename" ]]; then
+    if is_fedora && is_arch_only_migration "$file"; then
+      echo -e "\e[33m\nSkipping Arch-only migration (${filename%.sh}) on Fedora\e[0m"
+      touch "$STATE_DIR/skipped/$filename"
+      continue
+    fi
+
+    echo -e "\e[32m\nRunning migration (${filename%.sh})\e[0m"
+
+    if bash "$file"; then
+      touch "$STATE_DIR/$filename"
+    else
+      if command -v gum >/dev/null 2>&1 && gum confirm "Migration ${filename%.sh} failed. Skip and continue?"; then
+        touch "$STATE_DIR/skipped/$filename"
+      else
+        exit 1
+      fi
+    fi
   fi
-done < <(migration_entries)
-
-# Clear a login-time notification the user left sitting there and then resolved
-# by running migrations some other way. The substring matches both the current
-# and legacy notification titles.
-omarchy-notification-dismiss "Omarchy Migrations" >/dev/null 2>&1 || true
+done

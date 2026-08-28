@@ -18,5 +18,5 @@ return {
   home = home,
   config_home = env_or("XDG_CONFIG_HOME", home .. "/.config"),
   state_home = env_or("XDG_STATE_HOME", home .. "/.local/state"),
-  omarchy_path = env_or("OMARCHY_PATH", "/usr/share/omarchy"),
+  omarchy_path = env_or("OMARCHY_PATH", home .. "/.local/share/omarchy"),
 }
