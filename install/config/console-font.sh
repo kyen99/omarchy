@@ -9,7 +9,7 @@ if ! command -v setfont &>/dev/null; then
 fi
 
 echo "[Omarchy] Installing console-font.service..."
-sudo cp ~/.local/share/omarchy/config/systemd/system/console-font.service /etc/systemd/system/
+sudo cp "$OMARCHY_PATH/config/systemd/system/console-font.service" /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable console-font.service
 
