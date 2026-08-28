@@ -34,6 +34,8 @@ for path in \
   "$HOME/.config/hypr" \
   "$HOME/.config/uwsm/env" \
   "$HOME/.config/omarchy/shell.json" \
+  "$HOME/.config/omarchy/hooks/theme-set" \
+  "$HOME/.config/autostart/walker.desktop" \
   "$HOME/.profile"; do
   backup_path "$path"
 done
@@ -83,6 +85,10 @@ rm -rf "$old_hypr" "${old_hypr}.race"
 
 mkdir -p "$HOME/.config/omarchy" "$HOME/.config/uwsm"
 cp -a "$ROOT/config/omarchy/shell.json" "$HOME/.config/omarchy/shell.json"
+
+# These classic components are now hosted by Quickshell. In particular, the
+# old theme hook relaunches Waybar after every theme change, producing two bars.
+rm -f "$HOME/.config/omarchy/hooks/theme-set" "$HOME/.config/autostart/walker.desktop"
 
 cat >"$HOME/.config/uwsm/env" <<EOF
 export OMARCHY_PATH="$ROOT"
