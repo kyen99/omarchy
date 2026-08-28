@@ -1,6 +1,11 @@
 -- Keep only your personal input overrides here. Uncommented settings below
 -- replace Omarchy's defaults.
 
+-- Keep the more deliberate repeat timing used by the Fedora Asahi port. The
+-- upstream 250 ms delay is easy to trigger on an Apple laptop keyboard and can
+-- duplicate characters in the lock-screen password field.
+hl.config({ input = { repeat_rate = 40, repeat_delay = 600 } })
+
 -- Keyboard layout and options.
 -- See https://wiki.hypr.land/Configuring/Basics/Variables/#input
 -- hl.config({
