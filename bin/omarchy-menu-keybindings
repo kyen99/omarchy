@@ -245,18 +245,18 @@ modmask_to_text() {
     1)  printf 'SHIFT' ;;
     4)  printf 'CTRL' ;;
     5)  printf 'SHIFT CTRL' ;;
-    8)  printf 'ALT' ;;
-    9)  printf 'SHIFT ALT' ;;
-    12) printf 'CTRL ALT' ;;
-    13) printf 'SHIFT CTRL ALT' ;;
+    8)  printf 'OPTION' ;;
+    9)  printf 'SHIFT OPTION' ;;
+    12) printf 'CTRL OPTION' ;;
+    13) printf 'SHIFT CTRL OPTION' ;;
     64) printf 'SUPER' ;;
     65) printf 'SUPER SHIFT' ;;
     68) printf 'SUPER CTRL' ;;
     69) printf 'SUPER SHIFT CTRL' ;;
-    72) printf 'SUPER ALT' ;;
-    73) printf 'SUPER SHIFT ALT' ;;
-    76) printf 'SUPER CTRL ALT' ;;
-    77) printf 'SUPER SHIFT CTRL ALT' ;;
+    72) printf 'SUPER OPTION' ;;
+    73) printf 'SUPER SHIFT OPTION' ;;
+    76) printf 'SUPER CTRL OPTION' ;;
+    77) printf 'SUPER SHIFT CTRL OPTION' ;;
     *)  printf '%s' "$1" ;;
   esac
 }
@@ -357,8 +357,8 @@ dynamic_bindings() {
 
 # Hardcoded bindings, like the copy-url extension and such
 static_bindings() {
-  echo "SHIFT ALT,L,Copy URL from Web App,sendshortcut,SHIFT ALT,L,"
-  echo "SHIFT ALT,D,Download Video from Web App,sendshortcut,SHIFT ALT,D,"
+  echo "SHIFT OPTION,L,Copy URL from Web App,sendshortcut,SHIFT ALT,L,"
+  echo "SHIFT OPTION,D,Download Video from Web App,sendshortcut,SHIFT ALT,D,"
 }
 
 # Parse and format keybindings
@@ -485,7 +485,7 @@ output_binding_records_uncached() {
 
 keybindings_cache_key() {
   {
-    printf 'v5\n'
+    printf 'v6-apple-modifier-labels\n'
     hyprctl -j devices 2>/dev/null | jq -r '.keyboards[].active_keymap' 2>/dev/null
     hyprctl -j binds 2>/dev/null
   } | sha256sum | awk '{ print $1 }'
