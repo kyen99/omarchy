@@ -20,6 +20,8 @@ Panel {
   property int profileIndex: 0
   property bool cursorActive: false
   readonly property bool showPercentage: setting("showPercentage", false) === true
+  readonly property bool chargeLimitSupported: root.batteryInfo.threshold_supported === "yes"
+  readonly property bool chargeLimitEnabled: root.batteryInfo.threshold_enabled === "yes"
   // With the percentage shown the button paints a text block wider than an
   // icon, so the open-panel mark takes the painted width instead of the
   // icon-sized fraction of the slot the fallback assumes.
@@ -174,6 +176,12 @@ Panel {
     if (root.bar && root.bar.shell) root.bar.shell.updateEntryInline(root.moduleName, root.settings)
   }
 
+  function setChargeLimit(enabled) {
+    if (!root.chargeLimitSupported || chargeLimitProc.running) return
+    chargeLimitProc.command = ["omarchy-battery-charge-limit", enabled ? "on" : "off"]
+    chargeLimitProc.running = true
+  }
+
   IpcHandler {
     target: "omarchy.power"
 
@@ -225,6 +233,11 @@ Panel {
 
   Process {
     id: actionProc
+    onExited: root.refresh()
+  }
+
+  Process {
+    id: chargeLimitProc
     onExited: root.refresh()
   }
 
@@ -449,6 +462,23 @@ Panel {
               value: root.chargeThresholdActive ? "Holding" : (root.batteryFull ? "-" : (root.batteryInfo.rate || ""))
             }
           }
+        }
+
+        // ---------- Battery protection ----------
+        Toggle {
+          visible: root.chargeLimitSupported
+          width: parent.width
+          label: "Battery protection"
+          description: root.chargeLimitEnabled
+            ? "Charging is limited to " + (root.batteryInfo.threshold || "75-80%")
+            : "Allow charging to 100%"
+          checked: root.chargeLimitEnabled
+          enabled: !chargeLimitProc.running
+          opacity: enabled ? 1.0 : 0.6
+          foreground: root.bar.foreground
+          accent: root.bar.foreground
+          fontFamily: root.bar.fontFamily
+          onClicked: root.setChargeLimit(!root.chargeLimitEnabled)
         }
 
         // ---------- Power profile picker ----------

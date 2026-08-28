@@ -68,6 +68,8 @@ power_rate=$(awk '/energy-rate/ {
 state=$(awk '/state/ { print $2; exit }' <<<"$battery_info")
 threshold_start=$(awk '/charge-start-threshold:/ { gsub(/%/, "", $2); print int($2); exit }' <<<"$battery_info")
 threshold_end=$(awk '/charge-end-threshold:/ { gsub(/%/, "", $2); print int($2); exit }' <<<"$battery_info")
+threshold_enabled=$(awk '/charge-threshold-enabled:/ { print $2; exit }' <<<"$battery_info")
+threshold_supported=$(awk '/charge-threshold-supported:/ { print $2; exit }' <<<"$battery_info")
 
 [[ -z $threshold_end ]] && threshold_end=$(read_battery_attr charge_control_end_threshold)
 [[ -z $threshold_start ]] && threshold_start=$(read_battery_attr charge_control_start_threshold)
@@ -122,6 +124,9 @@ if [[ $shell_output == "true" ]]; then
       printf 'threshold\t%s%%\n' "$threshold_end"
     fi
   fi
+
+  [[ -n $threshold_enabled ]] && printf 'threshold_enabled\t%s\n' "$threshold_enabled"
+  [[ -n $threshold_supported ]] && printf 'threshold_supported\t%s\n' "$threshold_supported"
 
   exit 0
 fi

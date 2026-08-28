@@ -1,0 +1,61 @@
+#!/bin/bash
+
+# omarchy:summary=Show or toggle the UPower battery charge limit.
+# omarchy:args=[status|on|off|toggle]
+
+set -euo pipefail
+
+action="${1:-status}"
+case "$action" in
+  status | on | off | toggle) ;;
+  *)
+    echo "Usage: omarchy-battery-charge-limit [status|on|off|toggle]" >&2
+    exit 2
+    ;;
+esac
+
+script_path=$(readlink -f "$0")
+script_dir=$(dirname "$script_path")
+battery=$("$script_dir/omarchy-battery-device")
+if [[ -z $battery ]]; then
+  echo "No battery found" >&2
+  exit 1
+fi
+
+service="org.freedesktop.UPower"
+interface="org.freedesktop.UPower.Device"
+
+property() {
+  busctl get-property "$service" "$battery" "$interface" "$1" | awk '{ print $2 }'
+}
+
+supported=$(property ChargeThresholdSupported)
+[[ $supported == "true" ]] || {
+  echo "Battery charge thresholds are not supported" >&2
+  exit 1
+}
+
+current=$(property ChargeThresholdEnabled)
+
+if [[ $action == "status" ]]; then
+  printf 'enabled\t%s\n' "$current"
+  printf 'start\t%s\n' "$(property ChargeStartThreshold)"
+  printf 'end\t%s\n' "$(property ChargeEndThreshold)"
+  exit 0
+fi
+
+if [[ $action == "toggle" ]]; then
+  [[ $current == "true" ]] && action="off" || action="on"
+fi
+
+requested=false
+[[ $action == "on" ]] && requested=true
+
+# UPower deliberately restricts changing charging policy to root. Re-execute
+# only this small helper through Polkit; all device discovery and the actual
+# write still go through UPower rather than touching arbitrary sysfs paths.
+if (( EUID != 0 )); then
+  exec pkexec "$script_path" "$action"
+fi
+
+busctl call "$service" "$battery" "$interface" EnableChargeThreshold b "$requested" >/dev/null
