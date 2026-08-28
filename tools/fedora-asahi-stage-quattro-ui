@@ -61,9 +61,23 @@ printf 'Backup created at %s\n' "$backup"
 
 sudo dnf install -y quickshell libxkbcommon-utils qt6-qtimageformats
 
-rm -rf "$HOME/.config/hypr"
+# Prepare the complete tree first, then swap directories with renames. Removing
+# the live directory in place races Hyprland's config watcher, which recreates
+# hyprland.conf while rm is still walking it and can leave `Directory not empty`.
 mkdir -p "$HOME/.config"
-cp -a "$ROOT/config/hypr" "$HOME/.config/hypr"
+new_hypr=$(mktemp -d "$HOME/.config/.hypr-quattro.XXXXXX")
+cp -a "$ROOT/config/hypr"/. "$new_hypr"/
+old_hypr="$HOME/.config/.hypr-classic.$stamp"
+if [[ -e $HOME/.config/hypr ]]; then
+  mv "$HOME/.config/hypr" "$old_hypr"
+fi
+if ! mv "$new_hypr" "$HOME/.config/hypr" 2>/dev/null; then
+  # The compositor won the tiny rename gap and recreated its default. Move that
+  # generated directory away once and complete the prepared-tree rename.
+  mv "$HOME/.config/hypr" "${old_hypr}.race"
+  mv "$new_hypr" "$HOME/.config/hypr"
+fi
+rm -rf "$old_hypr" "${old_hypr}.race"
 
 mkdir -p "$HOME/.config/omarchy" "$HOME/.config/uwsm"
 cp -a "$ROOT/config/omarchy/shell.json" "$HOME/.config/omarchy/shell.json"
