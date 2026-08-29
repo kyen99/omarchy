@@ -47,7 +47,7 @@ yaru-icon-theme
 yaru-gtk3-theme
 yaru-gtk4-theme
 yaru-gtksourceview-theme
-# First-party tools (aether, cliamp, omacut, omawrite, tensaku, voxtype, tobi-try,
+# First-party tools (aether, cliamp, omacalc, omacut, omawrite, tensaku, voxtype, tobi-try,
 # hyprland-preview-share-picker) ship no Fedora/COPR aarch64 package. They are installed from upstream
 # release binaries or source builds by install/helpers/fedora-first-party.sh; their runtime libraries
 # are listed further down under "First-party tool runtime deps".

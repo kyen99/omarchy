@@ -21,6 +21,7 @@ AETHER_VER="4.27.2"
 CLIAMP_VER="1.57.1"
 TENSAKU_VER="0.26.6"
 VOXTYPE_VER="0.7.5"
+OMACALC_VER="0.2.2"
 OMACUT_VER="0.1.2"
 OMAWRITE_VER="0.2.0"
 SHARE_PICKER_VER="0.2.1"
@@ -149,6 +150,31 @@ install_tobi_try() {
   rm -rf "$tmp"
 }
 
+# --- omacalc: simple Qt6 calculator (source build) ---
+install_omacalc() {
+  stamped omacalc "$OMACALC_VER" && return 0
+  echo "Building omacalc $OMACALC_VER (Qt6 source)..."
+  need_build_deps gcc gcc-c++ make qt6-qtbase-devel qt6-qtdeclarative-devel
+  local tmp
+  tmp="$(mktemp -d)"
+  if curl -fsSL "https://github.com/omacom/omacalc/archive/refs/tags/v${OMACALC_VER}.tar.gz" | tar -xz -C "$tmp" &&
+    (cd "$tmp/omacalc-${OMACALC_VER}" && ./bin/build) &&
+    [[ -f "$tmp/omacalc-${OMACALC_VER}/build/omacalc" ]]; then
+    local src="$tmp/omacalc-${OMACALC_VER}"
+    sudo install -Dm755 "$src/build/omacalc" /usr/local/bin/omacalc
+    curl -fsSL "https://raw.githubusercontent.com/omacom/omarchy-pkgs/master/pkgbuilds/omacalc/omacalc.desktop" |
+      sudo install -Dm644 /dev/stdin /usr/share/applications/omacalc.desktop
+    curl -fsSL "https://raw.githubusercontent.com/omacom/omarchy-pkgs/master/pkgbuilds/omacalc/omacalc.svg" |
+      sudo install -Dm644 /dev/stdin /usr/share/icons/hicolor/scalable/apps/omacalc.svg
+    stamp omacalc "$OMACALC_VER"
+  else
+    warn "omacalc build failed"
+    rm -rf "$tmp"
+    return 1
+  fi
+  rm -rf "$tmp"
+}
+
 # --- omacut: Qt6 video trimmer (source build) ---
 install_omacut() {
   stamped omacut "$OMACUT_VER" && return 0
@@ -231,6 +257,7 @@ install_cliamp || true
 install_tensaku || true
 install_voxtype || true
 install_tobi_try || true
+install_omacalc || true
 install_omacut || true
 install_omawrite || true
 install_share_picker || true
