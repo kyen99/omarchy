@@ -19,6 +19,16 @@ hl.unbind("SUPER + ALT + SPACE")
 o.bind("SUPER + SPACE", "Apps menu", "omarchy-menu toggle apps")
 o.bind("SUPER + ALT + SPACE", "Omarchy menu", "omarchy-menu toggle root")
 
+-- Match macOS: Command+W sends Ctrl+W to close the active tab/document rather
+-- than asking Hyprland to kill the entire window.
+hl.unbind("SUPER + W")
+o.bind("SUPER + W", "Close tab", function()
+  hl.dispatch(hl.dsp.send_key_state({ mods = "CTRL", key = "W", state = "down" }))
+  hl.timer(function()
+    hl.dispatch(hl.dsp.send_key_state({ mods = "CTRL", key = "W", state = "up" }))
+  end, { timeout = 50, type = "oneshot" })
+end)
+
 -- Add a new binding.
 -- o.bind("SUPER + SHIFT + R", "SSH", "alacritty -e ssh your-server")
 
