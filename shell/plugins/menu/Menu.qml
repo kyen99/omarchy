@@ -1414,7 +1414,7 @@ Item {
             acceptedButtons: Qt.NoButton
             onWheel: function(event) {
               var delta = event.pixelDelta.y !== 0
-                ? event.pixelDelta.y * 2.2
+                ? event.pixelDelta.y * 4.5
                 : event.angleDelta.y / 3
               var minY = resultList.originY
               var maxY = Math.max(minY, minY + resultList.contentHeight - resultList.height)
