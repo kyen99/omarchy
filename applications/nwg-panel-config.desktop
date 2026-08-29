@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=nwg-panel Settings
+Exec=nwg-panel-config
+Icon=nwg-panel
+NoDisplay=true
