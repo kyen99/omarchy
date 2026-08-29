@@ -22,6 +22,8 @@ Item {
   readonly property int firstIdleTimeoutSeconds: Math.min(screensaverTimeoutSeconds, lockTimeoutSeconds)
   readonly property int screensaverDelaySeconds: Math.max(0, screensaverTimeoutSeconds - firstIdleTimeoutSeconds)
   readonly property int lockDelaySeconds: Math.max(0, lockTimeoutSeconds - firstIdleTimeoutSeconds)
+  readonly property int displayOffTimeoutSeconds: secondsFromConfig(idleConfig.displayOff, lockTimeoutSeconds + 30)
+  readonly property int displayOffDelaySeconds: Math.max(0, displayOffTimeoutSeconds - firstIdleTimeoutSeconds)
   readonly property bool idleEnabled: stayAwakeStateLoaded && !stayAwake
   readonly property string screensaverClass: "org.omarchy.screensaver"
 
@@ -31,6 +33,7 @@ Item {
   property bool pendingStayAwakePersist: false
   property bool idledThisCycle: false
   property bool screensaverStartedThisCycle: false
+  property bool displayOffApplied: false
   property string lastEvent: "starting"
   property string lastEventAt: ""
   property var screensaverWindows: ({})
@@ -88,6 +91,7 @@ Item {
     logEvent("idle-cycle-start", "screensaver=" + root.screensaverTimeoutSeconds + " lock=" + root.lockTimeoutSeconds)
     root.idledThisCycle = true
     root.screensaverStartedThisCycle = false
+    root.displayOffApplied = false
     resetScreensaverWindows()
 
     if (root.screensaverDelaySeconds === 0) launchScreensaver()
@@ -95,18 +99,24 @@ Item {
 
     if (root.lockDelaySeconds === 0) lockSystem("lock-timeout-immediate")
     else lockTimer.restart()
+
+    if (root.displayOffDelaySeconds === 0) turnDisplayOff()
+    else displayOffTimer.restart()
   }
 
   function cancelIdleCycle(reason) {
     logEvent("idle-cycle-cancel", reason || "requested")
     screensaverTimer.stop()
     lockTimer.stop()
+    displayOffTimer.stop()
     screensaverLaunchGraceTimer.stop()
 
-    if (root.idledThisCycle) runProcess(wakeProcess, "wake", "omarchy-system-wake")
+    if (root.idledThisCycle || root.displayOffApplied)
+      runProcess(wakeProcess, "wake", "omarchy-system-wake")
 
     root.idledThisCycle = false
     root.screensaverStartedThisCycle = false
+    root.displayOffApplied = false
     resetScreensaverWindows()
   }
 
@@ -155,7 +165,10 @@ Item {
   }
 
   function handleActiveSignal() {
-    if (!root.idledThisCycle) return
+    if (!root.idledThisCycle) {
+      if (root.displayOffApplied) cancelIdleCycle("display-wake")
+      return
+    }
 
     // Starting the screensaver can make the compositor report activity. Keep
     // the lock timer running once the screensaver exists (or during its short
@@ -177,6 +190,12 @@ Item {
     else handleActiveSignal()
   }
 
+  function turnDisplayOff() {
+    if (!root.idleEnabled) return
+    root.displayOffApplied = true
+    runProcess(displayOffProcess, "display-off", "omarchy-brightness-keyboard off; omarchy-brightness-display off")
+  }
+
   function statusJson() {
     return JSON.stringify({
       enabled: root.idleEnabled,
@@ -186,19 +205,24 @@ Item {
       idle: idleMonitor.isIdle,
       inIdleCycle: root.idledThisCycle,
       screensaverStarted: root.screensaverStartedThisCycle,
+      displayOffApplied: root.displayOffApplied,
       screensaver: root.screensaverTimeoutSeconds,
       lock: root.lockTimeoutSeconds,
+      displayOff: root.displayOffTimeoutSeconds,
       screensaverDelay: root.screensaverDelaySeconds,
       lockDelay: root.lockDelaySeconds,
+      displayOffDelay: root.displayOffDelaySeconds,
       screensaverWindows: root.screensaverWindowCount,
       timers: {
         screensaver: screensaverTimer.running,
         lock: lockTimer.running,
+        displayOff: displayOffTimer.running,
         screensaverLaunchGrace: screensaverLaunchGraceTimer.running
       },
       processes: {
         screensaver: screensaverProcess.running,
         lock: lockProcess.running,
+        displayOff: displayOffProcess.running,
         wake: wakeProcess.running
       },
       lastEvent: root.lastEvent,
@@ -270,6 +294,13 @@ Item {
   }
 
   Timer {
+    id: displayOffTimer
+    interval: root.displayOffDelaySeconds * 1000
+    repeat: false
+    onTriggered: root.turnDisplayOff()
+  }
+
+  Timer {
     id: screensaverLaunchGraceTimer
     interval: 3000
     repeat: false
@@ -292,6 +323,10 @@ Item {
   Process {
     id: lockProcess
     onExited: function(exitCode, exitStatus) { root.logEvent("process-exit", "lock exitCode=" + exitCode + " status=" + exitStatus) }
+  }
+  Process {
+    id: displayOffProcess
+    onExited: function(exitCode, exitStatus) { root.logEvent("process-exit", "display-off exitCode=" + exitCode + " status=" + exitStatus) }
   }
   Process {
     id: wakeProcess
