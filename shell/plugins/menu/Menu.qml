@@ -1225,6 +1225,22 @@ Item {
             spacing: root.rowSpacing
             boundsBehavior: Flickable.StopAtBounds
 
+            // Qt's default ListView wheel handling feels unusually damped on
+            // a precision touchpad. Scale only launcher/menu scrolling so the
+            // system trackpad factor can remain comfortable in browsers.
+            WheelHandler {
+              target: null
+              onWheel: function(event) {
+                var delta = event.pixelDelta.y !== 0
+                  ? event.pixelDelta.y * 1.6
+                  : event.angleDelta.y / 4
+                var minY = resultList.originY
+                var maxY = Math.max(minY, minY + resultList.contentHeight - resultList.height)
+                resultList.contentY = Math.max(minY, Math.min(maxY, resultList.contentY - delta))
+                event.accepted = true
+              }
+            }
+
             section.property: "section"
             section.criteria: ViewSection.FullString
             section.delegate: Item {
