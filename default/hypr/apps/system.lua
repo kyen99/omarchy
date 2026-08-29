@@ -30,6 +30,8 @@ o.window("org.omarchy.about", { size = { 920, 480 } })
 o.window("dev.tensaku.Tensaku", { float = true })
 o.window("dev.tensaku.Tensaku", { center = true })
 o.window("omacalc", { float = true })
+o.window("org.gnome.Calculator", { float = true })
+o.window("org.gnome.Calculator", { center = true })
 
 -- Fullscreen screensaver.
 o.window("org.omarchy.screensaver", { fullscreen = true })
