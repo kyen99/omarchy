@@ -261,6 +261,17 @@ fi
 exec 9>"$THEME_SET_LOCK"
 flock 9
 
+# Aether applies wallpapers with its own legacy swaybg/aether-wp layer after
+# calling this command. Quattro renders wallpapers inside Quickshell instead,
+# so that extra layer would otherwise cover every background selected later.
+# Keep Aether's layer while its theme is active (including animated wallpaper),
+# but remove it as soon as the user switches to any other Omarchy theme.
+if [[ $THEME_NAME != "aether" ]]; then
+  pkill -x swaybg >/dev/null 2>&1 || true
+  pkill -x aether-wp >/dev/null 2>&1 || true
+  rm -f "${XDG_RUNTIME_DIR:-/tmp}/aether-wp.pid"
+fi
+
 # Setup clean next theme directory (for atomic theme config swapping)
 rm -rf "$NEXT_THEME_PATH"
 mkdir -p "$NEXT_THEME_PATH"
