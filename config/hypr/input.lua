@@ -109,8 +109,9 @@ hl.config({
 -- defaults so terminal scrolling matches the system trackpad factor.
 o.window("(Alacritty|kitty|foot)", { scroll_touchpad = 0.12 })
 o.window("com.mitchellh.ghostty", { scroll_touchpad = 0.12 })
--- Chromium adds kinetic coasting itself, so use a gentler input scale there.
-o.window("chromium-browser", { scroll_touchpad = 0.015 })
+-- Chromium and Chromium --app windows add kinetic coasting themselves, so use
+-- a gentler input scale there. Packaged web apps use chrome-<host>__-Default.
+o.window("(chromium-browser|chrome-.*)", { scroll_touchpad = 0.015 })
 
 -- Enable three-finger horizontal swipes for changing workspaces.
 -- See https://wiki.hypr.land/Configuring/Advanced-and-Cool/Gestures/
