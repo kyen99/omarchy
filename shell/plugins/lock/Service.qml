@@ -34,10 +34,10 @@ Item {
   property bool strandedLock: false
   property bool strandedLockResolved: false
 
-  // WlSessionLock emits its state-change signal before the new value is always
-  // observable to QML. Refresh this explicitly on the next event-loop turn so
-  // the shell cannot retain a stale `true` after unlocking.
-  property bool locked: false
+  // Quickshell does not emit lockStateChanged after unlock, so a binding on
+  // sessionLock.locked stays stuck at true and later lock() calls become no-ops.
+  // lockRequested and sessionLock.secure both notify on the transitions we need.
+  readonly property bool locked: lockRequested || sessionLock.secure
   readonly property bool authenticating: authenticatingPassword || fingerprintAuthenticating
 
   function realScreenCount() {
@@ -64,7 +64,7 @@ Item {
   }
 
   function requestSessionLock() {
-    if (!lockRequested || sessionLock.locked || sessionLock.secure) return
+    if (!lockRequested || sessionLock.secure) return
     if (sessionLockStabilizeTimer.running) return
 
     if (!hasRealScreen()) {
@@ -116,8 +116,15 @@ Item {
     console.log("omarchy lock " + lastEventAt + " " + event)
   }
 
-  function refreshLockedState() {
-    root.locked = root.lockRequested || sessionLock.locked
+  function handleSessionUnlocked() {
+    if (!root.lockRequested) return
+
+    root.lockRequested = false
+    root.pendingSessionLock = false
+    sessionLockStabilizeTimer.stop()
+    pendingSessionLockTimer.stop()
+    root.resetAuthenticationState()
+    root.runWake()
   }
 
   function resetAuthenticationState() {
@@ -246,27 +253,20 @@ Item {
         sessionLockStabilizeTimer.stop()
         pendingSessionLockTimer.stop()
         root.startFingerprint()
+      } else {
+        root.handleSessionUnlocked()
       }
     }
 
     onLockStateChanged: {
-      // Reading `locked` synchronously here can still return the old value.
-      Qt.callLater(root.refreshLockedState)
       root.logEvent("session-locked=" + locked)
 
       if (locked) {
         root.pendingSessionLock = false
         sessionLockStabilizeTimer.stop()
         pendingSessionLockTimer.stop()
-      }
-
-      if (!locked && root.lockRequested) {
-        root.lockRequested = false
-        root.pendingSessionLock = false
-        sessionLockStabilizeTimer.stop()
-        pendingSessionLockTimer.stop()
-        root.resetAuthenticationState()
-        root.runWake()
+      } else {
+        root.handleSessionUnlocked()
       }
     }
 
@@ -484,8 +484,6 @@ Item {
     }
   }
 
-  onLockRequestedChanged: root.refreshLockedState()
-
   onAuthenticatingPasswordChanged: {
     if (!lockRequested) return
     if (authenticatingPassword) idleBlankTimer.stop()
@@ -513,7 +511,6 @@ Item {
   }
 
   Component.onCompleted: {
-    refreshLockedState()
     refreshBackground()
     refreshFingerprintStatus()
     checkStrandedLock()
@@ -524,7 +521,8 @@ Item {
 
     function lock(): string {
       if (!root.passwordPamConfigured) return "missing-pam"
-      if (!root.locked && !root.beginLock()) return "failed"
+      if (root.lockRequested || sessionLock.secure) return "ok"
+      if (!root.beginLock()) return "failed"
       return "ok"
     }
 
