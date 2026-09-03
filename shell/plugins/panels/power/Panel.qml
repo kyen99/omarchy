@@ -468,7 +468,7 @@ Panel {
         Toggle {
           visible: root.chargeLimitSupported
           width: parent.width
-          label: "Battery protection"
+          label: "Protect Battery"
           description: root.chargeLimitEnabled
             ? "Charging is limited to " + (root.batteryInfo.threshold || "75-80%")
             : "Allow charging to 100%"
