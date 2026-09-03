@@ -29,6 +29,12 @@ o.bind("SUPER + W", "Close tab", function()
   end, { timeout = 50, type = "oneshot" })
 end)
 
+-- Prefer Herdr on the former Tmux shortcuts.
+hl.unbind("SUPER + ALT + RETURN")
+o.bind("SUPER + ALT + RETURN", "Herdr", { omarchy = "terminal-herdr" })
+hl.unbind("SUPER + ALT + K")
+o.bind("SUPER + ALT + K", "Herdr keybindings", "omarchy-menu-herdr-keybindings")
+
 -- Add a new binding.
 -- o.bind("SUPER + SHIFT + R", "SSH", "alacritty -e ssh your-server")
 
