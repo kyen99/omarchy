@@ -34,7 +34,10 @@ Item {
   property bool strandedLock: false
   property bool strandedLockResolved: false
 
-  readonly property bool locked: lockRequested || sessionLock.locked || sessionLock.secure
+  // WlSessionLock emits its state-change signal before the new value is always
+  // observable to QML. Refresh this explicitly on the next event-loop turn so
+  // the shell cannot retain a stale `true` after unlocking.
+  property bool locked: false
   readonly property bool authenticating: authenticatingPassword || fingerprintAuthenticating
 
   function realScreenCount() {
@@ -111,6 +114,10 @@ Item {
     lastEvent = event
     lastEventAt = new Date().toISOString()
     console.log("omarchy lock " + lastEventAt + " " + event)
+  }
+
+  function refreshLockedState() {
+    root.locked = root.lockRequested || sessionLock.locked
   }
 
   function resetAuthenticationState() {
@@ -243,6 +250,8 @@ Item {
     }
 
     onLockStateChanged: {
+      // Reading `locked` synchronously here can still return the old value.
+      Qt.callLater(root.refreshLockedState)
       root.logEvent("session-locked=" + locked)
 
       if (locked) {
@@ -475,6 +484,8 @@ Item {
     }
   }
 
+  onLockRequestedChanged: root.refreshLockedState()
+
   onAuthenticatingPasswordChanged: {
     if (!lockRequested) return
     if (authenticatingPassword) idleBlankTimer.stop()
@@ -502,6 +513,7 @@ Item {
   }
 
   Component.onCompleted: {
+    refreshLockedState()
     refreshBackground()
     refreshFingerprintStatus()
     checkStrandedLock()
